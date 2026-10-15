@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#176b3a">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icons/icon-192.svg">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FarmTrack">
+<title>STAGING — FarmTrack Offline</title>
+<style>
+:root{--g:#176b3a;--g2:#2d8a4e;--bg:#f4f7f2;--card:#fff;--text:#17301f;--muted:#66756b;--line:#dfe8df;--orange:#e98b32;--red:#c84b45;--blue:#2c72b8}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:10;background:linear-gradient(135deg,var(--g),#0f4e2b);color:white;padding:18px 16px 16px;border-radius:0 0 22px 22px}
+h1{font-size:23px;margin:0}.sub{opacity:.82;font-size:12px;margin-top:3px}
+main{max-width:760px;margin:auto;padding:14px 14px 90px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 3px 12px #18331a0a}.stat{font-size:24px;font-weight:750}.label{font-size:12px;color:var(--muted)}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:12px 0}.btn{border:0;border-radius:13px;padding:12px;font-weight:700;background:#e5f2e7;color:var(--g);cursor:pointer}.btn.primary{background:var(--g);color:#fff}.btn.orange{background:#fff0df;color:#9a5614}.btn.blue{background:#e5f0fb;color:#205b91}
+.section{margin:18px 0 8px;font-size:16px;font-weight:800}.list{display:flex;flex-direction:column;gap:8px}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.pill{padding:5px 9px;border-radius:99px;background:#edf5ed;font-size:11px;color:var(--g)}.danger{color:var(--red)}.money{font-weight:800}
+nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:20}nav button{border:0;background:none;color:var(--muted);font-size:11px;display:flex;flex-direction:column;gap:3px;align-items:center}nav button.active{color:var(--g);font-weight:800}
+.modal{position:fixed;inset:0;background:#10201688;display:none;align-items:flex-end;z-index:30}.sheet{background:white;border-radius:24px 24px 0 0;padding:18px;width:100%;max-height:90vh;overflow:auto}.sheet h2{margin-top:0}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fbfdfb;font:inherit}textarea{min-height:75px}
+.empty{padding:22px;text-align:center;color:var(--muted)}.hero{background:linear-gradient(135deg,#e8f5e9,#fff);border-radius:18px;padding:16px;margin-bottom:12px}
+.small{font-size:12px;color:var(--muted)}.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}.hidden{display:none!important}
+</style>
+</head>
+<body><div style="background:#ffc857;color:#302000;text-align:center;padding:8px;font-weight:800;position:relative;z-index:50">TEST ENVIRONMENT — DO NOT ENTER REAL FARM DATA</div>
+<header><h1>🌾 FarmTrack</h1><div class="sub">Offline farm diary • expenses • crop records</div></header>
+<main id="app"></main>
+<nav>
+<button onclick="show('home')" id="n-home">🏠<span>Home</span></button>
+<button onclick="show('diary')" id="n-diary">📒<span>Diary</span></button>
+<button onclick="show('economics')" id="n-economics">📊<span>Economics</span></button>
+<button onclick="show('modules')" id="n-modules">🧩<span>Modules</span></button>
+</nav>
+<div class="modal" id="modal"><div class="sheet"><div id="form"></div></div></div>
+<script>
+const KEY='farmtrack_v1';
+const EMPTY_DB=()=>({profile:{},crops:[],events:[],expenses:[],notes:[],schemes:[],prices:[]});
+let db;
+try{
+  const raw=localStorage.getItem(KEY);
+  db=raw?JSON.parse(raw):EMPTY_DB();
+}catch(e){
+  try{localStorage.setItem('farmtrack_recovery_raw',localStorage.getItem(KEY)||'');}catch(_){}
+  db=EMPTY_DB();
+}
+let diaryQuery='',diaryType='All';
+function ensureData(){
+  if(!db||typeof db!=='object'||Array.isArray(db))db=EMPTY_DB();
+  db.profile=(db.profile&&typeof db.profile==='object'&&!Array.isArray(db.profile))?db.profile:{};
+  for(const k of ['crops','events','expenses','notes','schemes','prices'])if(!Array.isArray(db[k]))db[k]=[];
+  db.crops=db.crops.filter(x=>x&&typeof x==='object');
+  db.events=db.events.filter(x=>x&&typeof x==='object');
+  db.expenses=db.expenses.filter(x=>x&&typeof x==='object');
+  db.crops.forEach((x,i)=>x.id=x.id||('crop-'+Date.now()+'-'+i));
+  db.events.forEach((x,i)=>x.id=x.id||('event-'+Date.now()+'-'+i));
+  db.expenses.forEach((x,i)=>x.id=x.id||('exp-'+Date.now()+'-'+i));
+}
+ensureData();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){console.error('FarmTrack save failed',e);}}
+save();
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});}
+function isSaleExpense(e){return String(e.category||'').toLowerCase()==='sale'||db.events.some(x=>x.id===e.eventId&&x.type==='Sale')}
+function expenseRows(){return db.expenses.filter(e=>!isSaleExpense(e))}
+function salesRows(){return [...db.events.filter(e=>e.type==='Sale'),...db.expenses.filter(e=>String(e.category||'').toLowerCase()==='sale'&&!e.eventId)]}
+function total(){return expenseRows().reduce((a,x)=>a+Number(x.amount||0),0)}
+function salesTotal(){return salesRows().reduce((a,x)=>a+Number(x.amount||0),0)}
+let economicsView='expenses';
+function financeTab(view){economicsView=view;show('economics')}
+function cropName(id){const c=db.crops.find(c=>c&&c.id===id);return c&&c.name?c.name:'—'}
+function today(){return new Date().toISOString().slice(0,10)}
+function show(page){document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('n-'+page)?.classList.add('active');const a=document.getElementById('app');if(page==='home')a.innerHTML=home();if(page==='diary')a.innerHTML=diary();if(page==='economics')a.innerHTML=economics();if(page==='modules')a.innerHTML=modules();}
+function home(){
+  const p=db.profile||{};
+  const events=Array.isArray(db.events)?db.events:[];
+  const crops=Array.isArray(db.crops)?db.crops:[];
+  const last=[...events].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
+  const cropCards=crops.length?crops.slice(0,4).map(c=>'<div class="card row"><span><b>'+esc(c.name||'Crop')+'</b><div class="small">'+esc(c.variety||'')+' • '+esc(c.area||0)+' acres</div></span><span class="pill">'+esc(c.stage||'Sown')+'</span></div>').join(''):'<div class="card empty">Add your first crop to start tracking it.</div>';
+  let recent='<div class="card empty">No farm activity recorded yet.</div>';
+  if(last) recent='<div class="card"><div class="row"><b>'+esc(last.type||'Event')+'</b><span class="pill">'+esc(last.date||'')+'</span></div><div class="small">'+esc(last.crop?cropName(last.crop):'General')+' • '+esc(last.notes||'')+'</div>'+(last.amount?'<div class="money">'+money(last.amount)+'</div>':'')+'</div>';
+  return '<div class="hero"><div class="small">WELCOME</div><h2>'+esc(p.name||'Farmer')+'</h2><div class="small">'+esc(p.village||'Add your farm location')+(p.area?' • '+esc(p.area)+' acres':'')+'</div></div>'+
+  '<div class="grid"><div class="card"><div class="stat">'+crops.length+'</div><div class="label">Active crops</div></div><div class="card"><div class="stat">'+events.length+'</div><div class="label">Farm events</div></div><div class="card"><div class="stat">'+money(total())+'</div><div class="label">Total investment</div></div><div class="card"><div class="stat">'+expenseRows().length+'</div><div class="label">Expense entries</div></div></div>'+
+  '<div class="section">Quick actions</div><div class="actions"><button class="btn primary" onclick="addEvent()">➕ Add farm event</button><button class="btn orange" onclick="addExpense()">💰 Add expense</button><button class="btn" onclick="addCrop()">🌱 Add crop</button><button class="btn blue" onclick="profile()">👨‍🌾 Farmer profile</button></div>'+
+  '<div class="section">🌱 Crop status</div><div class="list">'+cropCards+'</div><div class="section">Recent activity</div>'+recent;
+}
+function diary(){let rows=[...db.events].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));const q=diaryQuery.toLowerCase().trim();if(q)rows=rows.filter(e=>[e.type,e.date,e.field,e.input,e.qty,e.notes,cropName(e.crop)].join(' ').toLowerCase().includes(q));if(diaryType!=='All')rows=rows.filter(e=>e.type===diaryType);const types=['All','Sowing','Fertilizer','Irrigation','Pesticide','Labour','Harvest','Sale','Other'];return `<div class="row"><div><div class="section">📒 Farm Diary</div><div class="small">Record, search and manage farm operations.</div></div><button class="btn primary" onclick="addEvent()">+ Event</button></div><div class="two"><input value="${esc(diaryQuery)}" placeholder="🔎 Search activity..." oninput="diaryQuery=this.value;show('diary')"><select onchange="diaryType=this.value;show('diary')">${types.map(t=>`<option ${t===diaryType?'selected':''}>${t}</option>`).join('')}</select></div><div class="small" style="margin:10px 2px">${rows.length} record${rows.length===1?'':'s'} shown</div><div class="list">${rows.length?rows.map(e=>`<div class="card"><div class="row"><b>${esc(e.type)}</b><span class="pill">${esc(e.date)}</span></div><div class="small">${esc(cropName(e.crop))}${e.field?' • '+esc(e.field):''}</div><div>${esc(e.notes||'')}</div>${e.amount?'<div class="money">'+money(e.amount)+'</div>':''}<div class="small">${e.input?esc(e.input):''}${e.qty?' • '+esc(e.qty):''}</div><div class="actions"><button class="btn" onclick="editEvent('${e.id}')">✏️ Edit</button><button class="btn" onclick="deleteEvent('${e.id}')">🗑️ Delete</button></div></div>`).join(''):'<div class="card empty">No matching records. Try another search or add a new farm event.</div>'}</div>`;}
+function economics(){
+const expenses=expenseRows(),sales=salesRows(),cost=total(),income=salesTotal(),net=income-cost;
+const tab=(name,label)=>'<button class="btn '+(economicsView===name?'primary':'')+'" onclick="financeTab(\''+name+'\')">'+label+'</button>';
+const header='<div class="section">💰 Farm Finances</div><div class="actions">'+tab('expenses','Expenses')+tab('sales','Sales')+tab('profit','Profit & Loss')+'</div>';
+if(economicsView==='expenses')return header+'<div class="row"><h3>Expenses</h3><button class="btn primary" onclick="addExpense()">+ Expense</button></div><div class="card"><div class="label">Total expenses</div><div class="stat">'+money(cost)+'</div></div><div class="list">'+(expenses.length?expenses.slice().reverse().map(x=>'<div class="card"><div class="row"><b>'+esc(x.category||'Expense')+'</b><b>'+money(x.amount)+'</b></div><div class="small">'+esc(x.date||'')+' • '+esc(cropName(x.crop))+'</div><div class="small">'+esc(x.note||'')+'</div></div>').join(''):'<div class="card empty">No expenses recorded.</div>')+'</div>';
+if(economicsView==='sales')return header+'<div class="row"><h3>Sales</h3><button class="btn primary" onclick="addSale()">+ Sale</button></div><div class="card"><div class="label">Total sales</div><div class="stat">'+money(income)+'</div></div><div class="list">'+(sales.length?sales.slice().reverse().map(x=>'<div class="card"><div class="row"><b>'+esc(cropName(x.crop))+'</b><b>'+money(x.amount)+'</b></div><div class="small">'+esc(x.date||'')+'</div><div class="small">'+esc(x.notes||x.note||'')+'</div></div>').join(''):'<div class="card empty">No sales yet.</div>')+'</div>';
+return header+'<div class="section">Profit & Loss</div><div class="grid"><div class="card"><div class="label">Total sales</div><div class="stat">'+money(income)+'</div></div><div class="card"><div class="label">Total expenses</div><div class="stat">'+money(cost)+'</div></div></div><div class="card"><div class="label">'+(net<0?'Net loss / deficit':'Net profit / surplus')+'</div><div class="stat">'+(net<0?'−':'')+money(Math.abs(net))+'</div><div class="small">Sales minus recorded expenses; excludes unsold inventory and unpaid liabilities.</div></div>';
+}
+function modules(){return `<div class="section">🧩 Farm modules</div><div class="list"><div class="card"><b>👨‍🌾 Farmer Profile</b><p class="small">Farmer, farm location, land and contact details.</p><button class="btn" onclick="profile()">Open</button></div><div class="card"><b>🌱 Crop Management</b><p class="small">Crops, varieties, sowing dates and crop-stage notes.</p><button class="btn" onclick="addCrop()">Add crop</button></div><div class="card"><b>🌦️ Weather & Alerts</b><p class="small">Offline-ready alert notes. Live weather can be connected when internet is available.</p><button class="btn" onclick="weather()">Open</button></div><div class="card"><b>🐛 Disease & Pest Diagnosis</b><p class="small">Record symptoms and diagnosis for later expert/AI review.</p><button class="btn" onclick="diagnosis()">Record</button></div><div class="card"><b>💰 Market Prices</b><p class="small">Store local market prices while offline.</p><button class="btn" onclick="price()">Add price</button></div><div class="card"><b>💳 Finance & Schemes</b><p class="small">Record loans, schemes, subsidies and payments.</p><button class="btn" onclick="scheme()">Add</button></div><div class="card"><b>🤖 AI Assistant</b><p class="small">Offline notes/questions now; online AI can be connected later.</p><button class="btn" onclick="assistant()">Ask</button></div><div class="card"><b>⚙️ Data</b><p class="small">Export a backup JSON file or restore your farm records.</p><button class="btn" onclick="exportData()">Export backup</button> <button class="btn" onclick="importData()">Import</button></div></div>`;}
+function openForm(title,body,submit){document.getElementById('form').innerHTML=`<h2>${title}</h2>${body}<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="${submit}">Save</button></div>`;document.getElementById('modal').style.display='flex';}
+function closeModal(){document.getElementById('modal').style.display='none'}
+function profile(){let p=db.profile;openForm('👨‍🌾 Farmer Profile',`<label>Name</label><input id="f_name" value="${esc(p.name||'')}"><label>Village / Location</label><input id="f_village" value="${esc(p.village||'')}"><label>Phone</label><input id="f_phone" value="${esc(p.phone||'')}"><label>Total land (acres)</label><input id="f_area" type="number" value="${p.area||''}"><label>Soil type</label><input id="f_soil" value="${esc(p.soil||'')}"><label>Irrigation</label><input id="f_irrigation" value="${esc(p.irrigation||'')}">`,'saveProfile()')}
+function saveProfile(){db.profile={name:f_name.value,village:f_village.value,phone:f_phone.value,area:f_area.value,soil:f_soil.value,irrigation:f_irrigation.value};save();closeModal();show('home')}
+function cropOptions(){return db.crops.map(c=>`<option value="${c.id}">${esc(c.name)}${c.variety?' — '+esc(c.variety):''}</option>`).join('')}
+function addCrop(){openForm('🌱 Add Crop',`<label>Crop</label><input id="c_name" placeholder="e.g. Soybean"><label>Variety</label><input id="c_variety" placeholder="Optional"><div class="two"><div><label>Area (acres)</label><input id="c_area" type="number" step="0.01"></div><div><label>Sowing date</label><input id="c_date" type="date" value="${today()}"></div></div><label>Field / plot</label><input id="c_field" placeholder="e.g. Field 1">`,'saveCrop()')}
+function saveCrop(){db.crops.push({id:Date.now().toString(),name:c_name.value,variety:c_variety.value,area:c_area.value,date:c_date.value,field:c_field.value});save();closeModal();show('home')}
+function addEvent(existingId,defaultType){if(!db.crops.length){alert('Add a crop first.');addCrop();return;}const e=existingId?db.events.find(x=>x.id===existingId):{};const types=['Sowing','Fertilizer','Irrigation','Pesticide','Labour','Harvest','Sale','Other'];openForm(existingId?'✏️ Edit Farm Event':'➕ Farm Event',`<label>Event type</label><select id="e_type">${types.map(t=>`<option ${t===(e?.type||defaultType)?'selected':''}>${t}</option>`).join('')}</select><label>Crop</label><select id="e_crop">${cropOptions()}</select><label>Date</label><input id="e_date" type="date" value="${e?.date||today()}"><label>Field / plot</label><input id="e_field" value="${esc(e?.field||'')}"><label>Input / material</label><input id="e_input" value="${esc(e?.input||'')}"><label>Quantity</label><input id="e_qty" value="${esc(e?.qty||'')}"><label>Amount (₹)</label><input id="e_amount" type="number" value="${e?.amount||''}"><label>Notes</label><textarea id="e_notes">${esc(e?.notes||'')}</textarea>`,'saveEvent()');if(existingId){setTimeout(()=>{const s=document.getElementById('e_crop');if(s)s.value=e.crop||''},0);window.editingEventId=existingId;}}
+function saveEvent(){
+const id=window.editingEventId||('event-'+Date.now()),e={id,type:e_type.value,crop:e_crop.value,date:e_date.value,field:e_field.value,input:e_input.value,qty:e_qty.value,amount:e_amount.value,notes:e_notes.value},idx=db.events.findIndex(x=>x.id===id);
+if(idx>=0)db.events[idx]=e;else db.events.push(e);
+const old=db.expenses.find(x=>x.eventId===id);
+if(e.type==='Sale'||!Number(e.amount)){db.expenses=db.expenses.filter(x=>x.eventId!==id);}
+else if(old){old.category=e.type;old.crop=e.crop;old.amount=e.amount;old.date=e.date;old.note=e.notes;}
+else db.expenses.push({id:'exp-'+Date.now(),eventId:id,category:e.type,crop:e.crop,amount:e.amount,date:e.date,note:e.notes});
+window.editingEventId=null;save();closeModal();show('diary');
+}
+function addSale(){addEvent(null,'Sale')}
+function editEvent(id){addEvent(id)}
+function deleteEvent(id){if(!confirm('Delete this farm event?'))return;db.events=db.events.filter(x=>x.id!==id);db.expenses=db.expenses.filter(x=>x.eventId!==id);save();show('diary')}
+function addExpense(){openForm('💰 Add Expense',`<label>Category</label><select id="x_cat"><option>Seed</option><option>Fertilizer</option><option>Pesticide</option><option>Labour</option><option>Irrigation</option><option>Machinery</option><option>Transport</option><option>Other</option></select><label>Crop</label><select id="x_crop"><option value="">General</option>${cropOptions()}</select><label>Date</label><input id="x_date" type="date" value="${today()}"><label>Amount (₹)</label><input id="x_amount" type="number"><label>Note</label><input id="x_note">`,'saveExpense()')}
+function saveExpense(){db.expenses.push({id:'exp-'+Date.now(),category:x_cat.value,crop:x_crop.value,amount:x_amount.value,date:x_date.value,note:x_note.value});save();closeModal();economicsView='expenses';show('economics')}
+async function weather(){openForm('🌦️ Weather & Alerts',`<p class="small">Enter coordinates to fetch a 3-day forecast when internet is available. The last successful forecast is saved for offline viewing.</p><div class="two"><div><label>Latitude</label><input id="w_lat" type="number" step="0.0001" value="16.85"></div><div><label>Longitude</label><input id="w_lon" type="number" step="0.0001" value="74.58"></div></div><div id="weatherOut" class="hero">Tap Fetch Forecast.</div><button class="btn blue" onclick="fetchWeather()">🌐 Fetch Forecast</button>`,'closeModal()')}
+async function fetchWeather(){const lat=w_lat.value,lon=w_lon.value,out=document.getElementById('weatherOut');if(!navigator.onLine){out.innerHTML='<b>📴 Offline</b><p class="small">No internet connection.</p>';return;}out.innerHTML='Fetching…';try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=precipitation_probability,temperature_2m&forecast_days=3&timezone=auto`;const res=await fetch(url);if(!res.ok)throw new Error();const j=await res.json();db.weather={fetched:new Date().toISOString(),data:j};save();out.innerHTML=`<b>🌤️ Current</b><p>${j.current.temperature_2m}°C • RH ${j.current.relative_humidity_2m}% • Rain ${j.current.precipitation} mm • Wind ${j.current.wind_speed_10m} km/h</p><p class="small">Forecast saved on this device.</p>`;}catch(e){out.innerHTML='<b>Could not fetch weather.</b><p class="small">Try again later. Saved data, if any, remains available offline.</p>';}}
+function diagnosis(){openForm('🐛 Disease / Pest Record',`<label>Crop</label><select id="d_crop"><option value="">General</option>${cropOptions()}</select><label>Symptoms</label><textarea id="d_symptoms"></textarea><label>Likely diagnosis</label><input id="d_diag"><label>Action / treatment note</label><textarea id="d_action"></textarea>`,'saveDiagnosis()')}
+function saveDiagnosis(){db.notes.push({type:'diagnosis',crop:d_crop.value,symptoms:d_symptoms.value,diagnosis:d_diag.value,action:d_action.value,date:today()});save();closeModal();show('modules')}
+function price(){openForm('💰 Market Price',`<label>Crop</label><input id="p_crop" placeholder="e.g. Onion"><label>Market</label><input id="p_market" placeholder="e.g. Sangli APMC"><label>Date</label><input id="p_date" type="date" value="${today()}"><label>Price (₹/quintal)</label><input id="p_price" type="number"><label>Notes</label><input id="p_note">`,'savePrice()')}
+function savePrice(){db.prices.push({crop:p_crop.value,market:p_market.value,date:p_date.value,price:p_price.value,note:p_note.value});save();closeModal();show('modules')}
+function scheme(){openForm('💳 Finance / Scheme',`<label>Type</label><select id="s_type"><option>Loan</option><option>Government scheme</option><option>Subsidy</option><option>Insurance</option><option>Other</option></select><label>Name</label><input id="s_name"><label>Amount (₹)</label><input id="s_amount" type="number"><label>Status / note</label><input id="s_note">`,'saveScheme()')}
+function saveScheme(){db.schemes.push({type:s_type.value,name:s_name.value,amount:s_amount.value,note:s_note.value});save();closeModal();show('modules')}
+function assistant(){openForm('🤖 AI Assistant',`<div id="aiStatus" class="hero"><b>Hybrid assistant</b><p class="small">Your question is saved on this device. If an AI endpoint is configured and internet is available, the app can request an online answer. Otherwise your offline notebook remains available.</p></div><label>Your question</label><textarea id="a_q" placeholder="e.g. What should I check before applying fertilizer?"></textarea><div class="two"><button class="btn blue" onclick="askOnlineAI()">🌐 Ask online AI</button><button class="btn" onclick="saveOfflineQuestion()">📴 Save offline</button></div><div id="aiAnswer"></div><label>Your own answer / expert note</label><textarea id="a_note"></textarea><div class="small">Online AI endpoint: set <code>db.aiEndpoint</code> to your secure backend URL. Do not place a private API key in this app.</div>`,'saveAssistant()')}
+async function askOnlineAI(){const q=document.getElementById('a_q')?.value.trim(),status=document.getElementById('aiStatus'),out=document.getElementById('aiAnswer');if(!q)return alert('Enter a question first.');if(!navigator.onLine){status.innerHTML='<b>📴 Offline</b><p class="small">No internet connection. Save the question and answer it later.</p>';return;}if(!db.aiEndpoint){status.innerHTML='<b>⚙️ Online AI not configured</b><p class="small">Set a secure backend URL in the production build. Your notebook still works offline.</p>';return;}status.innerHTML='<b>🌐 Asking online AI…</b>';try{const r=await fetch(db.aiEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,farmer:db.profile,crops:db.crops})});if(!r.ok)throw new Error('AI service error');const j=await r.json();const answer=j.answer||j.output||j.message||'No answer returned.';out.innerHTML=`<div class="card"><b>AI response</b><p>${esc(answer)}</p></div>`;db.notes.push({type:'ai_answer',question:q,answer,date:today(),online:true});save();}catch(e){status.innerHTML='<b>📴 Online AI unavailable</b><p class="small">The question remains usable offline. Try again when connectivity is restored.</p>';}}
+function saveOfflineQuestion(){const q=document.getElementById('a_q')?.value.trim(),n=document.getElementById('a_note')?.value||'';if(!q)return alert('Enter a question first.');db.notes.push({type:'question',question:q,note:n,date:today(),online:false});save();document.getElementById('aiStatus').innerHTML='<b>💾 Saved offline</b><p class="small">Your question is stored on this device.</p>'}
+function saveAssistant(){const q=document.getElementById('a_q')?.value||'',n=document.getElementById('a_note')?.value||'';if(q){db.notes.push({type:'question',question:q,note:n,date:today(),online:false});save();}closeModal();show('modules')}
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='farmtrack-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function importData(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();show('home');alert('Backup restored.')}catch(e){alert('Invalid backup file.')}};r.readAsText(i.files[0])};i.click()}
+show('home');
+</script><script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(()=>{});}</script>
+<script>
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=document.getElementById('installBtn');if(b)b.style.display='block';});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';});
+async function installApp(){if(!deferredInstallPrompt){alert('If the Install button is not available, open the browser menu and choose “Add to Home screen” or “Install app”.');return;}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;}
+</script>
+</body></html>
