@@ -9,7 +9,7 @@ function startup(seed){
  const nav=[{classList:{remove(){},add(){}}}];
  let saved=structuredClone(seed);
  const localStorage={getItem:key=>key==='farmtrack_staging_v1'?JSON.stringify(saved):null,setItem(key,value){if(key==='farmtrack_staging_v1')saved=JSON.parse(value)}};
- const ctx=vm.createContext({document:{querySelectorAll:()=>nav,getElementById:get},localStorage,console,Date,Number,String,Array,Object,JSON,Intl,setTimeout(){},alert(){},confirm(){return false}});
+ const ctx=vm.createContext({document:{querySelectorAll:()=>nav,getElementById:get},localStorage,console,Date,Number,String,Array,Object,JSON,Intl,setTimeout(){},alert(){},confirm(){return true}});
  new vm.Script(main,{filename:'farmtrack-main.js'}).runInContext(ctx,{timeout:1500});
  const render=page=>{vm.runInContext("show("+JSON.stringify(page)+")",ctx,{timeout:1500});return get('app').innerHTML};
  return {home:get('app').innerHTML,render,readSaved(){return structuredClone(saved)},input(id,value){get(id).value=value},eval(code){return vm.runInContext(code,ctx,{timeout:1500})}};
@@ -47,7 +47,7 @@ test('saving offline Labour expense persists it and refreshes profit immediately
 test('backup validation rejects malformed imports without modifying saved records',()=>{
  const app=startup(seed),before=JSON.stringify(app.readSaved());
  assert.throws(()=>app.eval("validateBackup('[]')"),/farm database object/);
- assert.throws(()=>app.eval("validateBackup('{\"profile\":{},\"crops\":[]}')"),/Missing or invalid/);
+ assert.throws(()=>app.eval('validateBackup('+JSON.stringify('{"profile":{},"crops":[]}')+')'),/Missing or invalid/);
  assert.equal(JSON.stringify(app.readSaved()),before);
 });
 test('backup restoration with user approval persists valid staging data',()=>{
