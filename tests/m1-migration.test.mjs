@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { migrateLegacy,validateLegacy,COLLECTIONS,LEGACY_KEY } from '../src/m1/migration.mjs';
+const fixture=()=>({profile:{name:'Test'},crops:[{id:'crop-1',name:'Soybean'}],events:[{id:'sale-1',type:'Sale',amount:5000}],expenses:[{id:'exp-1',category:'Labour',amount:500}],notes:[],schemes:[],prices:[]});
+test('migration reads staging key only',()=>assert.equal(LEGACY_KEY,'farmtrack_staging_v1'));
+test('all collections are preserved',()=>{const m=migrateLegacy(fixture());for(const n of COLLECTIONS) assert.equal(m.stores[n].length,fixture()[n].length)});
+test('financial amounts remain unchanged',()=>{const m=migrateLegacy(fixture());assert.equal(m.stores.events[0].amount,5000);assert.equal(m.stores.expenses[0].amount,500)});
+test('migration never mutates legacy source',()=>{const f=fixture(),before=JSON.stringify(f);migrateLegacy(f);assert.equal(JSON.stringify(f),before)});
+test('repeat migrations produce identical IDs',()=>{const f=fixture();f.expenses.push({amount:50});assert.deepEqual(migrateLegacy(f).stores.expenses,migrateLegacy(f).stores.expenses)});
+test('duplicate IDs reject, no silent overwrite',()=>{const f=fixture();f.crops.push({id:'crop-1'});assert.throws(()=>migrateLegacy(f),/Duplicate record ID/)});
+test('malformed and missing collections reject',()=>{assert.throws(()=>validateLegacy('oops'),/invalid/i);const f=fixture();delete f.prices;assert.throws(()=>migrateLegacy(f),/Invalid collection/)});
+test('migration snapshot represents original validated contents',()=>{const f=fixture(),m=migrateLegacy(f);assert.deepEqual(JSON.parse(m.rawSnapshot),f)});
