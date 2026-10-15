@@ -8,7 +8,7 @@ function startup(seed){
  const get=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',classList:{add(){},remove(){}},style:{}});return elements.get(id)};
  const nav=[{classList:{remove(){},add(){}}}];
  let saved=structuredClone(seed);
- const localStorage={getItem:key=>key==='farmtrack_v1'?JSON.stringify(saved):null,setItem(key,value){if(key==='farmtrack_v1')saved=JSON.parse(value)}};
+ const localStorage={getItem:key=>key==='farmtrack_staging_v1'?JSON.stringify(saved):null,setItem(key,value){if(key==='farmtrack_staging_v1')saved=JSON.parse(value)}};
  const ctx=vm.createContext({document:{querySelectorAll:()=>nav,getElementById:get},localStorage,console,Date,Number,String,Array,Object,JSON,Intl,setTimeout(){},alert(){},confirm(){return false}});
  new vm.Script(main,{filename:'farmtrack-main.js'}).runInContext(ctx,{timeout:1500});
  const render=page=>{vm.runInContext("show("+JSON.stringify(page)+")",ctx,{timeout:1500});return get('app').innerHTML};
