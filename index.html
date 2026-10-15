@@ -39,14 +39,14 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10p
 </nav>
 <div class="modal" id="modal"><div class="sheet"><div id="form"></div></div></div>
 <script>
-const KEY='farmtrack_v1';
+const KEY='farmtrack_staging_v1';
 const EMPTY_DB=()=>({profile:{},crops:[],events:[],expenses:[],notes:[],schemes:[],prices:[]});
 let db;
 try{
   const raw=localStorage.getItem(KEY);
   db=raw?JSON.parse(raw):EMPTY_DB();
 }catch(e){
-  try{localStorage.setItem('farmtrack_recovery_raw',localStorage.getItem(KEY)||'');}catch(_){}
+  try{localStorage.setItem('farmtrack_staging_recovery_raw',localStorage.getItem(KEY)||'');}catch(_){}
   db=EMPTY_DB();
 }
 let diaryQuery='',diaryType='All';
