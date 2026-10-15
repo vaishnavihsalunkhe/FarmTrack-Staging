@@ -43,3 +43,17 @@ test('saving offline Labour expense persists it and refreshes profit immediately
  assert.match(profit,/1,500/);
  assert.match(profit,/Profit & Loss/);
 });
+
+test('backup validation rejects malformed imports without modifying saved records',()=>{
+ const app=startup(seed),before=JSON.stringify(app.readSaved());
+ assert.throws(()=>app.eval("validateBackup('[]')"),/farm database object/);
+ assert.throws(()=>app.eval("validateBackup('{\"profile\":{},\"crops\":[]}')"),/Missing or invalid/);
+ assert.equal(JSON.stringify(app.readSaved()),before);
+});
+test('backup restoration with user approval persists valid staging data',()=>{
+ const app=startup(seed);
+ const fixture=structuredClone(seed);fixture.profile.name='Restored Test';
+ const ok=app.eval('restoreBackupText('+JSON.stringify(JSON.stringify(fixture))+')');
+ assert.equal(ok,true);
+ assert.equal(app.readSaved().profile.name,'Restored Test');
+});
