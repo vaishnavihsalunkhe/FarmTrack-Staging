@@ -143,7 +143,37 @@ async function askOnlineAI(){const q=document.getElementById('a_q')?.value.trim(
 function saveOfflineQuestion(){const q=document.getElementById('a_q')?.value.trim(),n=document.getElementById('a_note')?.value||'';if(!q)return alert('Enter a question first.');db.notes.push({type:'question',question:q,note:n,date:today(),online:false});save();document.getElementById('aiStatus').innerHTML='<b>💾 Saved offline</b><p class="small">Your question is stored on this device.</p>'}
 function saveAssistant(){const q=document.getElementById('a_q')?.value||'',n=document.getElementById('a_note')?.value||'';if(q){db.notes.push({type:'question',question:q,note:n,date:today(),online:false});save();}closeModal();show('modules')}
 function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='farmtrack-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
-function importData(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();show('home');alert('Backup restored.')}catch(e){alert('Invalid backup file.')}};r.readAsText(i.files[0])};i.click()}
+function validateBackup(text){
+  const candidate=JSON.parse(text);
+  if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))throw new Error('Backup must be a farm database object.');
+  for(const k of ['crops','events','expenses','notes','schemes','prices']){
+    if(!Array.isArray(candidate[k]))throw new Error('Missing or invalid '+k+' records.');
+    if(!candidate[k].every(x=>x&&typeof x==='object'&&!Array.isArray(x)))throw new Error('Invalid entry in '+k+'.');
+  }
+  if(!candidate.profile||typeof candidate.profile!=='object'||Array.isArray(candidate.profile))throw new Error('Invalid farmer profile.');
+  for(const k of ['expenses','events']){
+    if(candidate[k].some(x=>x.amount!==undefined&&x.amount!==''&&!Number.isFinite(Number(x.amount))))throw new Error('Invalid amount in '+k+'.');
+  }
+  return candidate;
+}
+function restoreBackupText(text){
+  const candidate=validateBackup(text);
+  if(!confirm('Replace all current STAGING test records with this backup? Export a backup first if needed.'))return false;
+  const previous=db;
+  try{localStorage.setItem(KEY,JSON.stringify(candidate));db=candidate;show('home');return true}
+  catch(e){db=previous;alert('Restore failed. Existing staging records were preserved.');return false}
+}
+function importData(){
+  const i=document.createElement('input');i.type='file';i.accept='.json';
+  i.onchange=()=>{
+    if(!i.files||!i.files[0])return;
+    const r=new FileReader();
+    r.onload=()=>{try{if(restoreBackupText(String(r.result)))alert('Staging backup restored.')}catch(e){alert('Backup rejected: '+e.message)}};
+    r.onerror=()=>alert('Could not read the backup file.');
+    r.readAsText(i.files[0]);
+  };
+  i.click();
+}
 show('home');
 </script><script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(()=>{});}</script>
 <script>
