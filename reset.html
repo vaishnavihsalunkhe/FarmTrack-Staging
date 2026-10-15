@@ -5,17 +5,17 @@
 </head>
 <body>
 <h2>FarmTrack recovery</h2>
-<p id="msg">Refreshing FarmTrack safely…</p>
+<p id="msg">Refreshing staging caches only…</p>
 <script>
 (async()=>{
   try{
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister()));
+      await Promise.all(regs.filter(r=>new URL(r.scope).pathname.startsWith('/FarmTrack-Staging/')).map(r=>r.unregister()));
     }
     if('caches' in window){
       const keys=await caches.keys();
-      await Promise.all(keys.map(k=>caches.delete(k)));
+      await Promise.all(keys.filter(k=>k.startsWith('farmtrack-staging-')).map(k=>caches.delete(k)));
     }
     document.getElementById('msg').textContent='Recovery complete. Opening FarmTrack…';
     setTimeout(()=>location.replace('./?recovered=1'),300);
