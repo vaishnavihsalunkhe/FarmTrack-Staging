@@ -11,12 +11,14 @@ function startup(seed){
  const ctx=vm.createContext({document:{querySelectorAll:()=>nav,getElementById:get},localStorage,console,Date,Number,String,Array,Object,JSON,Intl,setTimeout(){},alert(){},confirm(){return false}});
  new vm.Script(main,{filename:'farmtrack-main.js'}).runInContext(ctx,{timeout:1500});
  const render=page=>{vm.runInContext("show("+JSON.stringify(page)+")",ctx,{timeout:1500});return get('app').innerHTML};
- return {home:get('app').innerHTML,render};
+ return {home:get('app').innerHTML,render,eval(code){return vm.runInContext(code,ctx,{timeout:1500})}};
 }
 const seed={profile:{name:'Test Farmer'},crops:[{id:'c1',name:'Soybean',area:1,stage:'Growing'}],events:[{id:'s1',type:'Sale',crop:'c1',date:'2026-10-10',amount:3500}],expenses:[{id:'e1',category:'Fertilizer',crop:'c1',date:'2026-10-08',amount:900}],notes:[],schemes:[],prices:[]};
 test('launch renders dashboard with synthetic crop',()=>{const app=startup(seed);assert.match(app.home,/Test Farmer/);assert.match(app.home,/Soybean/)});
 test('diary tab renders records',()=>assert.match(startup(seed).render('diary'),/Farm Diary/));
 test('finance expenses tab excludes sale values',()=>{const app=startup(seed);const h=app.render('economics');assert.match(h,/900/);assert.doesNotMatch(h,/3,500/)});
-test('finance tabs render sales and profit',()=>{const app=startup(seed);vm.runInContext('',vm.createContext({}));assert.match(app.render('economics'),/Expenses/);});
+test('finance sales tab displays sale, excludes expenses',()=>{const app=startup(seed);app.eval("financeTab('sales')");const h=app.render('economics');assert.match(h,/3,500/);assert.doesNotMatch(h,/900/);});
+test('profit & loss computes correct net',()=>{const app=startup(seed);app.eval("financeTab('profit')");const h=app.render('economics');assert.match(h,/3,500/);assert.match(h,/900/);assert.match(h,/2,600/);});
+test('sales recorded as legacy linked expenses do not reduce profit',()=>{const old=structuredClone(seed);old.expenses.push({id:'sale-old',eventId:'s1',category:'Sale',amount:3500});const app=startup(old);app.eval("financeTab('profit')");assert.match(app.render('economics'),/2,600/);});
 test('modules tab renders',()=>assert.match(startup(seed).render('modules'),/Farm modules/));
 test('blank initial storage still launches',()=>assert.match(startup({}).home,/Quick actions/));
