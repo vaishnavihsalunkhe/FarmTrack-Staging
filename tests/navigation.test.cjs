@@ -25,7 +25,10 @@ test('modules tab renders',()=>assert.match(startup(seed).render('modules'),/Far
 test('blank initial storage still launches',()=>assert.match(startup({}).home,/Quick actions/));
 
 test('saving offline Labour expense persists it and refreshes profit immediately',()=>{
- const app=startup(seed);
+ const fixture=structuredClone(seed);
+ fixture.events[0].amount=5000;
+ fixture.expenses[0].amount=1000;
+ const app=startup(fixture);
  app.input('x_cat','Labour');
  app.input('x_crop','c1');
  app.input('x_date','2026-10-15');
@@ -37,6 +40,6 @@ test('saving offline Labour expense persists it and refreshes profit immediately
  assert.equal(Number(saved.expenses[1].amount),500);
  const profit=app.render('economics');
  assert.match(profit,/3,500/);
- assert.match(profit,/1,400/);
+ assert.match(profit,/1,500/);
  assert.match(profit,/Profit & Loss/);
 });
