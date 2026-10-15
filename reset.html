@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FarmTrack Recovery</title>
+<style>body{font-family:system-ui,sans-serif;padding:32px;text-align:center;background:#f4f7f2;color:#17301f}button{padding:14px 22px;border:0;border-radius:12px;background:#176b3a;color:white;font-weight:700;font-size:16px}</style>
+</head>
+<body>
+<h2>FarmTrack recovery</h2>
+<p id="msg">Refreshing FarmTrack safely…</p>
+<script>
+(async()=>{
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    document.getElementById('msg').textContent='Recovery complete. Opening FarmTrack…';
+    setTimeout(()=>location.replace('./?recovered=1'),300);
+  }catch(e){
+    document.getElementById('msg').innerHTML='Recovery could not complete. <button onclick="location.reload()">Try again</button>';
+  }
+})();
+</script>
+</body></html>
