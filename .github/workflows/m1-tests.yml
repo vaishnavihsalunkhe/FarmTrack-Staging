@@ -14,5 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install isolated IndexedDB test dependency
+        run: npm install --no-save --no-package-lock fake-indexeddb@6.2.5
       - name: Test M0 regressions and M1 migration helpers
         run: node --test tests/*.test.cjs tests/*.test.mjs
