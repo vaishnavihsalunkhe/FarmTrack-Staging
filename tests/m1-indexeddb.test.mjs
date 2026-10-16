@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { indexedDB } from 'fake-indexeddb';
+import { openFarmDatabase, migrateFromLocalStorage } from '../src/m1/storage.mjs';
+import { DATABASE_NAME, COLLECTIONS, LEGACY_KEY } from '../src/m1/migration.mjs';
+const fixture=()=>({profile:{name:'Staging Test'},crops:[{id:'c1',name:'Soybean'}],events:[{id:'s1',type:'Sale',amount:5000}],expenses:[{id:'x1',category:'Labour',amount:500}],notes:[],schemes:[],prices:[]});
+const request = q=>new Promise((resolve,reject)=>{q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)});
+const wipe=async()=>{await request(indexedDB.deleteDatabase(DATABASE_NAME))};
+test('IndexedDB migrates counts, metadata and leaves localStorage unchanged',async()=>{
+ await wipe();
+ const source=JSON.stringify(fixture());
+ let writes=0;
+ const storage={getItem:key=>key===LEGACY_KEY?source:null,setItem(){writes++},removeItem(){writes++}};
+ const result=await migrateFromLocalStorage({storage,indexedDBImpl:indexedDB});
+ assert.equal(result.status,'imported');
+ const db=await openFarmDatabase(indexedDB);
+ const tx=db.transaction([...COLLECTIONS,'metadata'],'readonly');
+ const counts={};
+ for(const name of COLLECTIONS)counts[name]=await request(tx.objectStore(name).count());
+ const snapshot=await request(tx.objectStore('metadata').get('legacy-backup'));
+ db.close();
+ assert.equal(counts.crops,1);assert.equal(counts.events,1);assert.equal(counts.expenses,1);
+ assert.deepEqual(JSON.parse(snapshot.raw),fixture());
+ assert.equal(writes,0);
+});
+test('invalid source is rejected before any imported data is written',async()=>{
+ await wipe();
+ await assert.rejects(migrateFromLocalStorage({storage:{getItem:()=>'{bad'},indexedDBImpl:indexedDB}),/invalid/i);
+ const db=await openFarmDatabase(indexedDB);
+ const tx=db.transaction('expenses','readonly');
+ assert.equal(await request(tx.objectStore('expenses').count()),0);db.close();
+});
+test('repeat migration aborts rather than creating duplicates',async()=>{
+ await wipe();
+ const storage={getItem:()=>JSON.stringify(fixture())};
+ await migrateFromLocalStorage({storage,indexedDBImpl:indexedDB});
+ await assert.rejects(migrateFromLocalStorage({storage,indexedDBImpl:indexedDB}));
+ const db=await openFarmDatabase(indexedDB);
+ const tx=db.transaction('expenses','readonly');
+ assert.equal(await request(tx.objectStore('expenses').count()),1);db.close();
+});
