@@ -12,7 +12,7 @@ test('IndexedDB device preview recalculates and survives offline restart', async
   await expect(page.locator('#expenseCount')).toHaveText('2');
   await page.reload();
   await expect(page.locator('#profit')).toHaveText('₹3,500');
-  await expect(page.evaluate(async () => {
+  await expect.poll(async()=>page.evaluate(async () => {
     const registration=await navigator.serviceWorker.ready;
     await registration.update();
     return !!registration.active;
