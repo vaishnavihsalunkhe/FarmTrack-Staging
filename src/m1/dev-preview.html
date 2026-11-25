@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FarmTrack M1 Device Preview</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#19352a;background:#f3f7f3}*{box-sizing:border-box}body{margin:0;max-width:650px;margin-inline:auto}header{padding:20px;background:#176b3a;color:white}h1{font-size:1.3rem;margin:0 0 4px}.notice{background:#ffe08a;color:#443300;font-weight:800;padding:12px;text-align:center}main{padding:16px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px #0001}.label{color:#5c7067;font-size:13px}.value{font-size:24px;font-weight:800}button{border:0;border-radius:10px;background:#176b3a;color:white;padding:12px 15px;font-weight:700;font-size:14px}button:focus-visible{outline:3px solid orange}.actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}#status{font-size:14px;min-height:2.5em}small{color:#5c7067}
+</style></head>
+<body><div class="notice">DEVELOPMENT PREVIEW — SYNTHETIC DATA ONLY</div><header><h1>🌾 FarmTrack M1</h1><div>IndexedDB Android acceptance preview</div></header>
+<main><div class="card"><b>Test-only data</b><p>Use only generated sample records. This development build must be hosted on a separate origin from both production and staging.</p><small>Do not import or enter real farmer data here.</small></div>
+<div class="actions"><button id="seed">Initialize sample farm</button><button id="add">Add ₹500 Labour expense</button><button id="refresh">Refresh totals</button><button id="export">Export test records</button></div>
+<div class="grid">
+<div class="card"><div class="label">Test crops</div><div id="crops" class="value">—</div></div>
+<div class="card"><div class="label">Expense entries</div><div id="expenseCount" class="value">—</div></div>
+<div class="card"><div class="label">Expenses</div><div id="expenses" class="value">—</div></div>
+<div class="card"><div class="label">Sales</div><div id="sales" class="value">—</div></div>
+<div class="card" style="grid-column:1/-1"><div class="label">Recorded surplus</div><div id="profit" class="value">—</div></div>
+</div><p id="status" role="status"></p></main>
+<script type="module" src="./dev-preview.mjs"></script></body></html>
