@@ -38,3 +38,38 @@ test('repeat import is rejected without duplication',async({page})=>{
  await expect(page.locator('#output')).toContainText('Migration not confirmed');
  expect((await dbData(page)).expenses.length).toBe(2);
 });
+
+test('failed transaction rolls back all attempted records',async({page})=>{
+ await prepare(page);
+ // Existing conflicting ID causes the transaction's asynchronous add() to fail.
+ await page.evaluate(async()=>{
+   const {openFarmDatabase}=await import('/src/m1/storage.mjs');
+   const db=await openFarmDatabase();
+   await new Promise((resolve,reject)=>{
+     const tx=db.transaction('crops','readwrite');
+     tx.objectStore('crops').add({id:'crop1',name:'Existing synthetic crop'});
+     tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+   });
+   db.close();
+ });
+ await page.getByRole('button',{name:'Run migration test'}).click();
+ await expect(page.locator('#output')).toContainText('Migration not confirmed');
+ const x=await dbData(page);
+ expect(x.crops).toHaveLength(1);
+ expect(x.crops[0].name).toBe('Existing synthetic crop');
+ expect(x.events).toHaveLength(0);
+ expect(x.expenses).toHaveLength(0);
+ expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key)).toEqual(fixture());
+});
+test('IndexedDB records remain accessible when network is disabled',async({page,context})=>{
+ await prepare(page);
+ await page.getByRole('button',{name:'Run migration test'}).click();
+ await expect(page.locator('#output')).toContainText('"status": "imported"');
+ await context.setOffline(true);
+ try {
+   const x=await dbData(page);
+   expect(x.crops).toHaveLength(2);
+   expect(x.events).toHaveLength(1);
+   expect(x.expenses.reduce((sum,e)=>sum+e.amount,0)).toBe(1500);
+ } finally { await context.setOffline(false); }
+});
