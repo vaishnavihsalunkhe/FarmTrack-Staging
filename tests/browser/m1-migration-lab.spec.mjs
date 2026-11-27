@@ -1,0 +1,42 @@
+import {test,expect} from '@playwright/test';
+const fixture=()=>({profile:{name:'Synthetic Migration Test'},crops:[{id:'c1',name:'Soybean',area:'1'}],events:[{id:'sale1',type:'Sale',crop:'c1',amount:'5000',date:'2026-10-15'}],expenses:[{id:'exp1',category:'Fertilizer',crop:'c1',amount:'1000'},{id:'exp2',category:'Sale',eventId:'sale1',crop:'c1',amount:'5000'}],notes:[],schemes:[],prices:[]});
+const upload=(page,data)=>page.locator('#file').setInputFiles({name:'synthetic-test.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});
+test('opt-in file migration reconciles and opens inside the full FarmTrack UI',async({page})=>{
+ await page.goto('/src/m1/migration-lab.html');
+ await upload(page,fixture());
+ await page.locator('#validate').click();
+ await expect(page.locator('#report')).toContainText('"netCents": 400000');
+ await page.locator('#approval').check();
+ await page.locator('#import').click();
+ await expect(page.locator('#result')).toContainText('IMPORT VERIFIED');
+ await page.goto('/src/m1/full-app.html');
+ await expect(page.locator('#storageStatus')).toContainText('IndexedDB ready');
+ await expect(page.locator('#app')).toContainText('Soybean');
+ await page.locator('#n-economics').click();
+ await page.getByRole('button',{name:'Profit & Loss'}).click();
+ await expect(page.locator('#app')).toContainText('₹4,000');
+ expect(await page.evaluate(()=>localStorage.getItem('farmtrack_v1'))).toBeNull();
+});
+test('existing IndexedDB prevents import overwrites',async({page})=>{
+ await page.goto('/src/m1/full-app.html');
+ await expect(page.locator('#storageStatus')).toContainText('IndexedDB ready');
+ await page.getByRole('button',{name:/Add crop/i}).first().click();
+ await page.locator('#c_name').fill('Existing Synthetic Crop');
+ await page.locator('#form').getByRole('button',{name:'Save'}).click();
+ await expect(page.locator('#storageStatus')).toContainText('Saved in IndexedDB');
+ await page.goto('/src/m1/migration-lab.html');
+ await upload(page,fixture());
+ await page.locator('#validate').click();
+ await page.locator('#approval').check();
+ await page.locator('#import').click();
+ await expect(page.locator('#result')).toContainText('Import rejected');
+ await page.goto('/src/m1/full-app.html');
+ await expect(page.locator('#app')).toContainText('Existing Synthetic Crop');
+});
+test('bad backup fails validation before any import',async({page})=>{
+ await page.goto('/src/m1/migration-lab.html');
+ await upload(page,{profile:{},crops:'not-an-array'});
+ await page.locator('#validate').click();
+ await expect(page.locator('#report')).toContainText('Validation failed');
+ await expect(page.locator('#import')).toBeDisabled();
+});
