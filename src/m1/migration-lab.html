@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FarmTrack M1 Migration Lab</title>
+<style>body{font-family:system-ui,sans-serif;max-width:680px;margin:0 auto;padding:20px;background:#f5f8f5;color:#17301f}h1{font-size:24px}section{background:white;border:1px solid #ddd;padding:20px;border-radius:15px;margin-block:16px}input,button{font:inherit;padding:12px}button{border:0;border-radius:10px;background:#176b3a;color:white;font-weight:700}button:disabled{opacity:.45}pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{background:#ffecbd;padding:12px;border-radius:10px}</style></head>
+<body><h1>🌾 M1 Migration Lab</h1><div class="warning">DEVELOPMENT TEST ONLY — USE SYNTHETIC JSON DATA. NEVER IMPORT REAL PRODUCTION BACKUPS HERE.</div>
+<section><h2>1. Select test backup</h2><input id="file" aria-label="Choose test backup" type="file" accept=".json,application/json"><p>Files are read locally in this browser. This tool never reads production or staging localStorage.</p><button id="validate" disabled>Validate selected backup</button></section>
+<section><h2>2. Review reconciliation</h2><pre id="report" role="status">Select a synthetic backup file.</pre><label><input type="checkbox" id="approval" disabled> I understand that import is allowed only into an empty development database.</label><p><button id="import" disabled>Import into M1 development IndexedDB</button></p></section>
+<section><h2>3. Verify</h2><pre id="result" role="status">No import performed.</pre></section>
+<script type="module" src="./migration-lab.mjs"></script>
+</body></html>
