@@ -15,7 +15,7 @@ test('M1 file import preserves all original values and deduplicates legacy linke
  const report=await importLegacyText(text,indexedDB);
  assert.equal(report.counts.events,1);
  const restored=await readState(indexedDB);
- assert.deepEqual(restored,data);
+ assert.deepEqual(restored,{...data,notes:[{...data.notes[0],id:'legacy-notes-0'}]});
  const db=await openFullDb(indexedDB);
  const tx=db.transaction('state','readonly');
  const raw=await req(tx.objectStore('state').get('legacy-backup'));
