@@ -1,6 +1,7 @@
 // M1-06 development only. All state lives in a separately named IndexedDB.
 // No automatic access to production or staging localStorage.
 import {migrateLegacy} from './migration.mjs';
+import {reconcileLegacy} from './reconciliation.mjs';
 export const FULL_DB_NAME='farmtrack-m1-full-development-v1';
 export const EMPTY_STATE=()=>({profile:{},crops:[],events:[],expenses:[],notes:[],schemes:[],prices:[]});
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -47,11 +48,18 @@ export async function writeState(data,impl=globalThis.indexedDB){
     return snapshot;
   }finally{db.close()}
 }
-// Explicit opt-in only. Requires an empty development database.
-// Original text is preserved alongside the imported data in the same transaction.
-export async function importLegacyText(text,impl=globalThis.indexedDB){
+// Explicit file-based import, never reads localStorage. Reject occupied databases.
+// A legacy backup and reconciled data are written in one IndexedDB transaction.
+export function prepareLegacyImport(text){
   const migrated=migrateLegacy(text);
-  const snapshot=validateState(JSON.parse(migrated.rawSnapshot));
+  const source=JSON.parse(migrated.rawSnapshot);
+  const candidate=validateState(source);
+  for(const [name,records] of Object.entries(migrated.stores))candidate[name]=records;
+  const reconciliation=reconcileLegacy(source,candidate);
+  return {candidate,counts:migrated.counts,financials:reconciliation.before};
+}
+export async function importLegacyText(text,impl=globalThis.indexedDB){
+  const prepared=prepareLegacyImport(text);
   const db=await openFullDb(impl);
   try{
     await new Promise((resolve,reject)=>{
@@ -60,14 +68,20 @@ export async function importLegacyText(text,impl=globalThis.indexedDB){
       const q=store.get('current');
       q.onsuccess=()=>{
         if(q.result){tx.abort();return;}
-        store.add({key:'legacy-backup',raw:text});
-        store.add({key:'current',value:snapshot,updatedAt:new Date().toISOString()});
+        try{
+          store.add({key:'legacy-backup',raw:text});
+          store.add({key:'current',value:prepared.candidate,updatedAt:new Date().toISOString()});
+          store.add({key:'migration-report',counts:prepared.counts,financials:prepared.financials});
+        }catch(e){tx.abort()}
       };
+      q.onerror=()=>tx.abort();
       tx.oncomplete=resolve;
-      tx.onerror=()=>reject(tx.error||new Error('Import failed'));
-      tx.onabort=()=>reject(tx.error||new Error('Import rejected: destination already contains records'));
+      tx.onerror=()=>reject(tx.error||new Error('Import transaction failed'));
+      tx.onabort=()=>reject(tx.error||new Error('Import rejected. Destination must be empty; nothing was replaced.'));
     });
-    return migrated.counts;
+    const after=await readState(impl);
+    reconcileLegacy(prepared.candidate,after);
+    return {counts:prepared.counts,financials:prepared.financials};
   }finally{db.close()}
 }
 // Serialize writes and take a copy immediately: callers cannot alter an in-flight snapshot.
